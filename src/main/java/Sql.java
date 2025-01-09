@@ -1,9 +1,11 @@
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import java.sql.Statement;
 import java.sql.PreparedStatement;
+import java.util.Map;
 
 public class Sql {
     private final SimpleDB simpleDB;
@@ -96,5 +98,36 @@ public class Sql {
         }
 
         return 0;
+    }
+
+    public List<Map<String, Object>> selectRows() {
+        String sql = queryBuilder.toString();
+        List<Map<String, Object>> rows = new ArrayList<>();
+
+        try (
+                Connection conn = simpleDB.getConnection();
+                PreparedStatement stmt = prepareStmt(conn, sql);
+                ResultSet rs = stmt.executeQuery()
+        ) {
+            ResultSetMetaData metaData = rs.getMetaData();
+            int columnCount = metaData.getColumnCount();
+
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+
+                for (int i = 1; i <= columnCount; i++) {
+                    String columnName = metaData.getColumnLabel(i);
+                    Object value = rs.getObject(i);
+                    row.put(columnName, value);
+                }
+
+                rows.add(row);
+            }
+        } catch (SQLException e) {
+            System.out.println("selectRows() 실행 실패");
+            e.printStackTrace();
+        }
+
+        return rows;
     }
 }
