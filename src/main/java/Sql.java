@@ -81,4 +81,20 @@ public class Sql {
 
         return 0;
     }
+
+    public int delete() {
+        String sql = queryBuilder.toString();
+
+        try (
+                Connection conn = simpleDB.getConnection();
+                PreparedStatement stmt = prepareStmt(conn, sql)
+        ) {
+            return stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("delete() 실행 실패");
+            e.printStackTrace();
+        }
+
+        return 0;
+    }
 }
