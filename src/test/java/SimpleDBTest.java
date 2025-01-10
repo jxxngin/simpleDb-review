@@ -358,35 +358,35 @@ public class SimpleDBTest {
         assertThat(foundIds).isEqualTo(Arrays.stream(ids).toList());
     }
 
-//    @Test
-//    @DisplayName("selectRows, test.Article")
-//    public void t015() {
-//        Sql sql = simpleDB.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT *
-//        FROM article
-//        ORDER BY id ASC
-//        LIMIT 3
-//        */
-//        sql.append("SELECT * FROM article ORDER BY id ASC LIMIT 3");
-//        List<test.Article> articleRows = sql.selectRows(test.Article.class);
-//
-//        IntStream.range(0, articleRows.size()).forEach(i -> {
-//            long id = i + 1;
-//
-//            test.Article article = articleRows.get(i);
-//
-//            assertThat(article.getId()).isEqualTo(id);
-//            assertThat(article.getTitle()).isEqualTo("제목%d".formatted(id));
-//            assertThat(article.getBody()).isEqualTo("내용%d".formatted(id));
-//            assertThat(article.getCreatedDate()).isInstanceOf(LocalDateTime.class);
-//            assertThat(article.getCreatedDate()).isNotNull();
-//            assertThat(article.getModifiedDate()).isInstanceOf(LocalDateTime.class);
-//            assertThat(article.getModifiedDate()).isNotNull();
-//            assertThat(article.isBlind()).isEqualTo(false);
-//        });
-//    }
+    @Test
+    @DisplayName("selectRows, test.Article")
+    public void t015() {
+        Sql sql = simpleDB.genSql();
+        /*
+        == rawSql ==
+        SELECT *
+        FROM article
+        ORDER BY id ASC
+        LIMIT 3
+        */
+        sql.append("SELECT * FROM article ORDER BY id ASC LIMIT 3");
+        List<test.Article> articleRows = sql.selectRows(test.Article.class);
+
+        IntStream.range(0, articleRows.size()).forEach(i -> {
+            long id = i + 1;
+
+            test.Article article = articleRows.get(i);
+
+            assertThat(article.getId()).isEqualTo(id);
+            assertThat(article.getTitle()).isEqualTo("제목%d".formatted(id));
+            assertThat(article.getBody()).isEqualTo("내용%d".formatted(id));
+            assertThat(article.getCreatedDate()).isInstanceOf(LocalDateTime.class);
+            assertThat(article.getCreatedDate()).isNotNull();
+            assertThat(article.getModifiedDate()).isInstanceOf(LocalDateTime.class);
+            assertThat(article.getModifiedDate()).isNotNull();
+            assertThat(article.isBlind()).isEqualTo(false);
+        });
+    }
 //
 //    @Test
 //    @DisplayName("selectRow, test.Article")

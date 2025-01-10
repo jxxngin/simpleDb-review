@@ -33,6 +33,10 @@ public class Sql {
     }
 
     public Sql appendIn(String query, Object... params) {
+        if (params.length == 1 && params[0] instanceof Object[]) {
+            params = (Object[]) params[0];
+        }
+
         String placeholders = String.join(", ", java.util.Collections.nCopies(params.length, "?"));
         String sqlPart = query.replace("?", placeholders);
 
@@ -189,6 +193,26 @@ public class Sql {
         }
 
         return date;
+    }
+
+    public List<Long> selectLongs() {
+        String sql = queryBuilder.toString();
+        List<Long> ids = new ArrayList<>();
+
+        try (
+                Connection conn = simpleDB.getConnection();
+                PreparedStatement stmt = prepareStmt(conn, sql);
+                ResultSet rs = stmt.executeQuery()
+        ) {
+            while (rs.next()) {
+                ids.add(rs.getLong(1));
+            }
+        } catch(SQLException e) {
+            System.out.println("selectLongs() 실행 실패");
+            e.printStackTrace();
+        }
+
+        return ids;
     }
 
     public Long selectLong() {
