@@ -32,6 +32,17 @@ public class Sql {
         return this;
     }
 
+    public Sql appendIn(String query, Object... params) {
+        String placeholders = String.join(", ", java.util.Collections.nCopies(params.length, "?"));
+        String sqlPart = query.replace("?", placeholders);
+
+        queryBuilder.append(sqlPart).append(" ");
+        for (Object param : params) {
+            queryParams.add(param);
+        }
+        return this;
+    }
+
     private PreparedStatement prepareStmt(Connection conn, String sql, int... option) throws SQLException {
         PreparedStatement stmt;
 
@@ -239,6 +250,4 @@ public class Sql {
 
         return isBlind;
     }
-
-
 }
