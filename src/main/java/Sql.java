@@ -219,4 +219,26 @@ public class Sql {
 
         return title;
     }
+
+    public boolean selectBoolean() {
+        String sql = queryBuilder.toString();
+        Boolean isBlind = null;
+
+        try (
+                Connection conn = simpleDB.getConnection();
+                PreparedStatement stmt = prepareStmt(conn, sql);
+                ResultSet rs = stmt.executeQuery()
+        ) {
+            if (rs.next()) {
+                isBlind = rs.getBoolean(1);
+            }
+        } catch (SQLException e) {
+            System.out.println("selectBoolean() 실행 실패");
+            e.printStackTrace();
+        }
+
+        return isBlind;
+    }
+
+
 }
