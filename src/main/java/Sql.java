@@ -1,4 +1,5 @@
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -110,15 +111,15 @@ public class Sql {
                 ResultSet rs = stmt.executeQuery()
         ) {
             ResultSetMetaData metaData = rs.getMetaData();
-            int columnCount = metaData.getColumnCount();
+            int colCount = metaData.getColumnCount();
 
             while (rs.next()) {
                 Map<String, Object> row = new HashMap<>();
 
-                for (int i = 1; i <= columnCount; i++) {
-                    String columnName = metaData.getColumnLabel(i);
-                    Object value = rs.getObject(i);
-                    row.put(columnName, value);
+                for (int i = 1; i <= colCount; i++) {
+                    String colName = metaData.getColumnLabel(i);
+                    Object val = rs.getObject(i);
+                    row.put(colName, val);
                 }
 
                 rows.add(row);
@@ -129,5 +130,93 @@ public class Sql {
         }
 
         return rows;
+    }
+
+    public Map<String, Object> selectRow() {
+        String sql = queryBuilder.toString();
+        Map<String, Object> row = new HashMap<>();
+
+        try (
+                Connection conn = simpleDB.getConnection();
+                PreparedStatement stmt = prepareStmt(conn, sql);
+                ResultSet rs = stmt.executeQuery()
+        ) {
+            ResultSetMetaData metaData = rs.getMetaData();
+            int colCount = metaData.getColumnCount();
+
+            if (rs.next()) {
+                for (int i = 1; i <= colCount; i++) {
+                    String colName = metaData.getColumnLabel(i);
+                    Object val = rs.getObject(i);
+                    row.put(colName, val);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("selectRow() 실행 실패");
+            e.printStackTrace();
+        }
+
+        return row;
+    }
+
+    public LocalDateTime selectDatetime() {
+        String sql = queryBuilder.toString();
+        LocalDateTime date = null;
+
+        try (
+                Connection conn = simpleDB.getConnection();
+                PreparedStatement stmt = prepareStmt(conn, sql);
+                ResultSet rs = stmt.executeQuery()
+        ) {
+            if (rs.next()) {
+                date = rs.getObject(1, LocalDateTime.class);
+            }
+        } catch(SQLException e) {
+            System.out.println("selectDatetime() 실행 실패");
+            e.printStackTrace();
+        }
+
+        return date;
+    }
+
+    public Long selectLong() {
+        String sql = queryBuilder.toString();
+        Long id = null;
+
+        try (
+                Connection conn = simpleDB.getConnection();
+                PreparedStatement stmt = prepareStmt(conn, sql);
+                ResultSet rs = stmt.executeQuery()
+                ) {
+            if (rs.next()) {
+                id = rs.getLong(1);
+            }
+        } catch (SQLException e) {
+            System.out.println("selectLong() 실행 실패");
+            e.printStackTrace();
+        }
+
+        return id;
+    }
+
+    public String selectString() {
+        String sql = queryBuilder.toString();
+        String title = new String();
+
+        try (
+                Connection conn = simpleDB.getConnection();
+                PreparedStatement stmt = prepareStmt(conn, sql);
+                ResultSet rs = stmt.executeQuery()
+                ) {
+            if (rs.next()) {
+                title = rs.getString(1);
+            }
+        } catch (SQLException e) {
+            System.out.println("selectString() 실행 실패");
+            e.printStackTrace();
+        }
+
+        return title;
     }
 }
