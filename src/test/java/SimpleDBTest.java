@@ -1,16 +1,12 @@
-import test.Article;
 import org.junit.jupiter.api.*;
+
+import modules.Article;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -370,12 +366,12 @@ public class SimpleDBTest {
         LIMIT 3
         */
         sql.append("SELECT * FROM article ORDER BY id ASC LIMIT 3");
-        List<test.Article> articleRows = sql.selectRows(test.Article.class);
+        List<modules.Article> articleRows = sql.selectRows(modules.Article.class);
 
         IntStream.range(0, articleRows.size()).forEach(i -> {
             long id = i + 1;
 
-            test.Article article = articleRows.get(i);
+            modules.Article article = articleRows.get(i);
 
             assertThat(article.getId()).isEqualTo(id);
             assertThat(article.getTitle()).isEqualTo("제목%d".formatted(id));
@@ -387,32 +383,32 @@ public class SimpleDBTest {
             assertThat(article.isBlind()).isEqualTo(false);
         });
     }
-//
-//    @Test
-//    @DisplayName("selectRow, test.Article")
-//    public void t016() {
-//        Sql sql = simpleDB.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT *
-//        FROM article
-//        WHERE id = 1
-//        */
-//        sql.append("SELECT * FROM article WHERE id = 1");
-//        test.Article article = sql.selectRow(test.Article.class);
-//
-//        Long id = 1L;
-//
-//        assertThat(article.getId()).isEqualTo(id);
-//        assertThat(article.getTitle()).isEqualTo("제목%d".formatted(id));
-//        assertThat(article.getBody()).isEqualTo("내용%d".formatted(id));
-//        assertThat(article.getCreatedDate()).isInstanceOf(LocalDateTime.class);
-//        assertThat(article.getCreatedDate()).isNotNull();
-//        assertThat(article.getModifiedDate()).isInstanceOf(LocalDateTime.class);
-//        assertThat(article.getModifiedDate()).isNotNull();
-//        assertThat(article.isBlind()).isEqualTo(false);
-//    }
-//
+
+    @Test
+    @DisplayName("selectRow, test.Article")
+    public void t016() {
+        Sql sql = simpleDB.genSql();
+        /*
+        == rawSql ==
+        SELECT *
+        FROM article
+        WHERE id = 1
+        */
+        sql.append("SELECT * FROM article WHERE id = 1");
+        modules.Article article = sql.selectRow(modules.Article.class);
+
+        Long id = 1L;
+
+        assertThat(article.getId()).isEqualTo(id);
+        assertThat(article.getTitle()).isEqualTo("제목%d".formatted(id));
+        assertThat(article.getBody()).isEqualTo("내용%d".formatted(id));
+        assertThat(article.getCreatedDate()).isInstanceOf(LocalDateTime.class);
+        assertThat(article.getCreatedDate()).isNotNull();
+        assertThat(article.getModifiedDate()).isInstanceOf(LocalDateTime.class);
+        assertThat(article.getModifiedDate()).isNotNull();
+        assertThat(article.isBlind()).isEqualTo(false);
+    }
+
 //    // 테스트 메서드를 정의하고, 테스트 이름을 지정합니다.
 //    @Test
 //    @DisplayName("use in multi threading")

@@ -1,3 +1,5 @@
+import javax.xml.transform.Result;
+import java.lang.reflect.Field;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -7,6 +9,7 @@ import java.util.List;
 import java.sql.Statement;
 import java.sql.PreparedStatement;
 import java.util.Map;
+import java.util.function.Function;
 
 public class Sql {
     private final SimpleDB simpleDB;
@@ -117,8 +120,14 @@ public class Sql {
     }
 
     public List<Map<String, Object>> selectRows() {
+        return selectRows(Map.class).stream()
+                .map(row -> (Map<String, Object>) row)
+                .toList();
+    }
+
+    public <T> List<T> selectRows(Class<T> clazz) {
         String sql = queryBuilder.toString();
-        List<Map<String, Object>> rows = new ArrayList<>();
+        List<T> rows = new ArrayList<>();
 
         try (
                 Connection conn = simpleDB.getConnection();
@@ -129,12 +138,15 @@ public class Sql {
             int colCount = metaData.getColumnCount();
 
             while (rs.next()) {
-                Map<String, Object> row = new HashMap<>();
+                T row = clazz.getDeclaredConstructor().newInstance();
 
                 for (int i = 1; i <= colCount; i++) {
                     String colName = metaData.getColumnLabel(i);
                     Object val = rs.getObject(i);
-                    row.put(colName, val);
+
+                    Field field = clazz.getDeclaredField(colName);
+                    field.setAccessible(true);
+                    field.set(row, val);
                 }
 
                 rows.add(row);
@@ -142,9 +154,17 @@ public class Sql {
         } catch (SQLException e) {
             System.out.println("selectRows() 실행 실패");
             e.printStackTrace();
+        } catch (Exception e) {
+            System.out.println("객체 변환 실패");
+            e.printStackTrace();
         }
 
         return rows;
+    }
+
+    public <T> T selectRow(Class<T> clazz) {
+        List<T> rows = selectRows(clazz);
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     public Map<String, Object> selectRow() {
