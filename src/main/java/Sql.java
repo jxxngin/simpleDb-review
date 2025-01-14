@@ -1,15 +1,9 @@
-import javax.xml.transform.Result;
 import java.lang.reflect.Field;
 import java.sql.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
-import java.sql.Statement;
-import java.sql.PreparedStatement;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class Sql {
     private final SimpleDB simpleDB;
@@ -29,9 +23,7 @@ public class Sql {
 
     public Sql append(String query, Object... params) {
         queryBuilder.append(query).append(" ");
-        for (Object param : params) {
-            queryParams.add(param);
-        }
+        queryParams.addAll(Arrays.asList(params));
         return this;
     }
 
@@ -40,24 +32,47 @@ public class Sql {
             params = (Object[]) params[0];
         }
 
-        String placeholders = String.join(", ", java.util.Collections.nCopies(params.length, "?"));
-        String sqlPart = query.replace("?", placeholders);
+        String placeholders = String.join(", ", Collections.nCopies(params.length, "?"));
+        queryBuilder.append(query.replace("?", placeholders)).append(" ");
+        queryParams.addAll(Arrays.asList(params));
 
-        queryBuilder.append(sqlPart).append(" ");
-        for (Object param : params) {
-            queryParams.add(param);
-        }
         return this;
     }
 
-    private PreparedStatement prepareStmt(Connection conn, String sql, int... option) throws SQLException {
-        PreparedStatement stmt;
-
-        if (option.length > 0) {
-            stmt = conn.prepareStatement(sql, option[0]);
-        } else {
-            stmt = conn.prepareStatement(sql);
+    private <T> T executeQuery(Function<ResultSet, T> handler, int... options) {
+        String sql = queryBuilder.toString();
+        try (
+                Connection conn = simpleDB.getConnection();
+                PreparedStatement stmt = prepareStmt(conn, sql, options);
+                ResultSet rs = stmt.executeQuery()
+        ) {
+            return handler.apply(rs);
+        } catch (SQLException e) {
+            System.out.println("쿼리 실행 오류");
+            e.printStackTrace();
         }
+        return null;
+    }
+
+    private int executeUpdate(int... options) {
+        String sql = queryBuilder.toString();
+
+        try (
+                Connection conn = simpleDB.getConnection();
+                PreparedStatement stmt = prepareStmt(conn, sql, options)
+        ) {
+            return stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("업데이트 오류");
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    private PreparedStatement prepareStmt(Connection conn, String sql, int... options) throws SQLException {
+        PreparedStatement stmt = options.length > 0
+                ? conn.prepareStatement(sql, options[0])
+                : conn.prepareStatement(sql);
 
         for (int i = 0; i < queryParams.size(); i++) {
             stmt.setObject(i + 1, queryParams.get(i));
@@ -75,54 +90,24 @@ public class Sql {
         ) {
             stmt.executeUpdate();
 
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                return rs.getLong(1);
+            try (ResultSet rs = stmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
             }
         } catch (SQLException e) {
-            System.out.println("insert() 실행 실패");
+            System.out.println("insert 오류");
             e.printStackTrace();
         }
-
         return -1;
     }
 
     public int update() {
-        String sql = queryBuilder.toString();
-
-        try (
-                Connection conn = simpleDB.getConnection();
-                PreparedStatement stmt = prepareStmt(conn, sql)
-        ) {
-            return stmt.executeUpdate();
-        } catch (SQLException e) {
-            System.out.println("update() 실행 실패");
-            e.printStackTrace();
-        }
-
-        return 0;
+        return executeUpdate();
     }
 
     public int delete() {
-        String sql = queryBuilder.toString();
-
-        try (
-                Connection conn = simpleDB.getConnection();
-                PreparedStatement stmt = prepareStmt(conn, sql)
-        ) {
-            return stmt.executeUpdate();
-        } catch (SQLException e) {
-            System.out.println("delete() 실행 실패");
-            e.printStackTrace();
-        }
-
-        return 0;
-    }
-
-    public List<Map<String, Object>> selectRows() {
-        return selectRows(Map.class).stream()
-                .map(row -> (Map<String, Object>) row)
-                .toList();
+        return executeUpdate();
     }
 
     public <T> List<T> selectRows(Class<T> clazz) {
@@ -138,21 +123,26 @@ public class Sql {
             int colCount = metaData.getColumnCount();
 
             while (rs.next()) {
-                T row = clazz.getDeclaredConstructor().newInstance();
-
-                for (int i = 1; i <= colCount; i++) {
-                    String colName = metaData.getColumnLabel(i);
-                    Object val = rs.getObject(i);
-
-                    Field field = clazz.getDeclaredField(colName);
-                    field.setAccessible(true);
-                    field.set(row, val);
+                if (clazz == Map.class) {
+                    Map<String, Object> row = new HashMap<>();
+                    for (int i = 1; i <= colCount; i++) {
+                        row.put(metaData.getColumnLabel(i), rs.getObject(i));
+                    }
+                    rows.add(clazz.cast(row));
+                } else {
+                    T obj = clazz.getDeclaredConstructor().newInstance();
+                    for (int i = 1; i <= colCount; i++) {
+                        String colName = metaData.getColumnLabel(i);
+                        Object val = rs.getObject(i);
+                        Field field = clazz.getDeclaredField(colName);
+                        field.setAccessible(true);
+                        field.set(obj, val);
+                    }
+                    rows.add(obj);
                 }
-
-                rows.add(row);
             }
         } catch (SQLException e) {
-            System.out.println("selectRows() 실행 실패");
+            System.out.println("selectRows 오류");
             e.printStackTrace();
         } catch (Exception e) {
             System.out.println("객체 변환 실패");
@@ -167,131 +157,74 @@ public class Sql {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
+    public List<Map<String, Object>> selectRows() {
+        return selectRows(Map.class).stream()
+                .map(row -> (Map<String, Object>) row) // 명시적 캐스팅
+                .collect(Collectors.toList());
+    }
+
     public Map<String, Object> selectRow() {
-        String sql = queryBuilder.toString();
-        Map<String, Object> row = new HashMap<>();
-
-        try (
-                Connection conn = simpleDB.getConnection();
-                PreparedStatement stmt = prepareStmt(conn, sql);
-                ResultSet rs = stmt.executeQuery()
-        ) {
-            ResultSetMetaData metaData = rs.getMetaData();
-            int colCount = metaData.getColumnCount();
-
-            if (rs.next()) {
-                for (int i = 1; i <= colCount; i++) {
-                    String colName = metaData.getColumnLabel(i);
-                    Object val = rs.getObject(i);
-                    row.put(colName, val);
-                }
-            }
-
-        } catch (SQLException e) {
-            System.out.println("selectRow() 실행 실패");
-            e.printStackTrace();
-        }
-
-        return row;
+        return selectRow(Map.class);
     }
 
     public LocalDateTime selectDatetime() {
-        String sql = queryBuilder.toString();
-        LocalDateTime date = null;
-
-        try (
-                Connection conn = simpleDB.getConnection();
-                PreparedStatement stmt = prepareStmt(conn, sql);
-                ResultSet rs = stmt.executeQuery()
-        ) {
-            if (rs.next()) {
-                date = rs.getObject(1, LocalDateTime.class);
+        return executeQuery(rs -> {
+            try {
+                if (rs.next()) return rs.getObject(1, LocalDateTime.class);
+            } catch (SQLException e) {
+                System.out.println("selectDatetime 오류");
+                e.printStackTrace();
             }
-        } catch(SQLException e) {
-            System.out.println("selectDatetime() 실행 실패");
-            e.printStackTrace();
-        }
-
-        return date;
+            return null;
+        });
     }
 
     public List<Long> selectLongs() {
-        String sql = queryBuilder.toString();
-        List<Long> ids = new ArrayList<>();
-
-        try (
-                Connection conn = simpleDB.getConnection();
-                PreparedStatement stmt = prepareStmt(conn, sql);
-                ResultSet rs = stmt.executeQuery()
-        ) {
-            while (rs.next()) {
-                ids.add(rs.getLong(1));
+        return executeQuery(rs -> {
+            List<Long> ids = new ArrayList<>();
+            try {
+                while (rs.next()) ids.add(rs.getLong(1));
+            } catch (SQLException e) {
+                System.out.println("selectLongs 오류");
+                e.printStackTrace();
             }
-        } catch(SQLException e) {
-            System.out.println("selectLongs() 실행 실패");
-            e.printStackTrace();
-        }
-
-        return ids;
+            return ids;
+        });
     }
 
     public Long selectLong() {
-        String sql = queryBuilder.toString();
-        Long id = null;
-
-        try (
-                Connection conn = simpleDB.getConnection();
-                PreparedStatement stmt = prepareStmt(conn, sql);
-                ResultSet rs = stmt.executeQuery()
-                ) {
-            if (rs.next()) {
-                id = rs.getLong(1);
+        return executeQuery(rs -> {
+            try {
+                if (rs.next()) return rs.getLong(1);
+            } catch (SQLException e) {
+                System.out.println("selectLong 오류");
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            System.out.println("selectLong() 실행 실패");
-            e.printStackTrace();
-        }
-
-        return id;
+            return null;
+        });
     }
 
     public String selectString() {
-        String sql = queryBuilder.toString();
-        String title = new String();
-
-        try (
-                Connection conn = simpleDB.getConnection();
-                PreparedStatement stmt = prepareStmt(conn, sql);
-                ResultSet rs = stmt.executeQuery()
-                ) {
-            if (rs.next()) {
-                title = rs.getString(1);
+        return executeQuery(rs -> {
+            try {
+                if (rs.next()) return rs.getString(1);
+            } catch (SQLException e) {
+                System.out.println("selectString 오류");
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            System.out.println("selectString() 실행 실패");
-            e.printStackTrace();
-        }
-
-        return title;
+            return null;
+        });
     }
 
-    public boolean selectBoolean() {
-        String sql = queryBuilder.toString();
-        Boolean isBlind = null;
-
-        try (
-                Connection conn = simpleDB.getConnection();
-                PreparedStatement stmt = prepareStmt(conn, sql);
-                ResultSet rs = stmt.executeQuery()
-        ) {
-            if (rs.next()) {
-                isBlind = rs.getBoolean(1);
+    public Boolean selectBoolean() {
+        return executeQuery(rs -> {
+            try {
+                if (rs.next()) return rs.getBoolean(1);
+            } catch (SQLException e) {
+                System.out.println("selectBoolean 오류");
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            System.out.println("selectBoolean() 실행 실패");
-            e.printStackTrace();
-        }
-
-        return isBlind;
+            return null;
+        });
     }
 }
