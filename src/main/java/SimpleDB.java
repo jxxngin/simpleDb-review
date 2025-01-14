@@ -11,7 +11,7 @@ public class SimpleDB {
     private final String project;
 
     private String mode = "none";
-    private Connection conn;
+    private static final ThreadLocal<Connection> threadLocalConnection = new ThreadLocal<>();
 
     public SimpleDB(String host, String username, String password, String project) {
         this.host = host;
@@ -25,9 +25,12 @@ public class SimpleDB {
     }
 
     public Connection getConnection() throws SQLException {
-        String url = DB_PROTOCOL + host + "/" + project;
-        conn = DriverManager.getConnection(url, username, password);
-
+        Connection conn = threadLocalConnection.get();
+        if (conn == null || conn.isClosed()) {
+            String url = DB_PROTOCOL + host + "/" + project;
+            conn = DriverManager.getConnection(url, username, password);
+            threadLocalConnection.set(conn);
+        }
         return conn;
     }
 
@@ -37,8 +40,7 @@ public class SimpleDB {
         ) {
             stmt.execute(query);
         } catch (SQLException e) {
-            System.out.println("run() 실행 실패");
-            e.printStackTrace();
+            throw new RuntimeException("run() 실패", e);
         }
     }
 
@@ -52,8 +54,7 @@ public class SimpleDB {
 
             stmt.executeUpdate();
         } catch (SQLException e) {
-            System.out.println("매개변수를 사용한 run() 실패");
-            e.printStackTrace();
+            throw new RuntimeException("매개변수를 사용한 run() 실패", e);
         }
     }
 
@@ -63,11 +64,52 @@ public class SimpleDB {
 
     public void close() {
         try {
-            conn.close();
+            Connection conn = threadLocalConnection.get();
+            if (conn != null && !conn.isClosed()) {
+                conn.close();
+            }
+            threadLocalConnection.remove();
             System.out.println("DB 연결 종료");
         } catch (SQLException e) {
-            System.out.println("close() 실행 실패");
-            e.printStackTrace();
+            throw new RuntimeException("DB 종료 실패", e);
         }
     }
+
+    public void startTransaction() {
+        try {
+            Connection conn = getConnection();
+            conn.setAutoCommit(false);
+        } catch (SQLException e) {
+            throw new RuntimeException("트랜잭션 시작 실패", e);
+        }
+    }
+
+    public void rollback() {
+        try {
+            Connection conn = threadLocalConnection.get();
+            if (conn != null && !conn.isClosed()) {
+                conn.rollback();
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("롤백 실패", e);
+        }
+    }
+
+//    public void commit() {
+//        try {
+//            Connection conn = threadLocalConnection.get();
+//            if (conn != null && !conn.isClosed()) {
+//                if (conn.getAutoCommit()) {
+//                    System.out.println("트랜잭션이 시작되지 않았습니다.");
+//                    return;
+//                }
+//                conn.commit();
+//                conn.setAutoCommit(true);
+//                System.out.println("트랜잭션 커밋 성공");
+//            }
+//        } catch (SQLException e) {
+//            throw new RuntimeException("커밋 실패", e);
+//        }
+//    }
 }

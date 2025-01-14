@@ -28,13 +28,13 @@ public class Sql {
     }
 
     public Sql appendIn(String query, Object... params) {
-        if (params.length == 1 && params[0] instanceof Object[]) {
-            params = (Object[]) params[0];
-        }
+        String inCluase = Arrays.stream(params)
+                .map(o -> "?")
+                .collect(Collectors.joining(", "));
 
-        String placeholders = String.join(", ", Collections.nCopies(params.length, "?"));
-        queryBuilder.append(query.replace("?", placeholders)).append(" ");
-        queryParams.addAll(Arrays.asList(params));
+        String replacedSql = query.replaceAll("\\?", inCluase);
+        queryParams.addAll(Arrays.stream(params).toList());
+        queryBuilder.append(replacedSql);
 
         return this;
     }
