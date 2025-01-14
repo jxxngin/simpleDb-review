@@ -2,6 +2,8 @@ import org.junit.jupiter.api.*;
 
 import modules.Article;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -506,31 +508,31 @@ public class SimpleDBTest {
         assertThat(newCount).isEqualTo(oldCount);
     }
 
-//    @Test
-//    @DisplayName("commit")
-//    public void t019() {
-//        // simpleDB에서 SQL 객체를 생성합니다.
-//        long oldCount = simpleDB.genSql()
-//                .append("SELECT COUNT(*)")
-//                .append("FROM article")
-//                .selectLong();
-//
-//        // 트랜잭션을 시작합니다.
-//        simpleDB.startTransaction();
-//
-//        simpleDB.genSql()
-//                .append("INSERT INTO article ")
-//                .append("(createdDate, modifiedDate, title, body)")
-//                .appendIn("VALUES (NOW(), NOW(), ?)", "새 제목", "새 내용")
-//                .insert();
-//
-//        simpleDB.commit();
-//
-//        long newCount = simpleDB.genSql()
-//                .append("SELECT COUNT(*)")
-//                .append("FROM article")
-//                .selectLong();
-//
-//        assertThat(newCount).isEqualTo(oldCount + 1);
-//    }
+    @Test
+    @DisplayName("commit")
+    public void t019() {
+        // simpleDB에서 SQL 객체를 생성합니다.
+        long oldCount = simpleDB.genSql()
+                .append("SELECT COUNT(*)")
+                .append("FROM article")
+                .selectLong();
+
+        // 트랜잭션을 시작합니다.
+        simpleDB.startTransaction();
+
+        simpleDB.genSql()
+                .append("INSERT INTO article ")
+                .append("(createdDate, modifiedDate, title, body)")
+                .appendIn("VALUES (NOW(), NOW(), ?)", "새 제목", "새 내용")
+                .insert();
+
+        simpleDB.commit();
+
+        long newCount = simpleDB.genSql()
+                .append("SELECT COUNT(*)")
+                .append("FROM article")
+                .selectLong();
+
+        assertThat(newCount).isEqualTo(oldCount + 1);
+    }
 }

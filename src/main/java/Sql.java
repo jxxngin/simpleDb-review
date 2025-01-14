@@ -9,9 +9,15 @@ public class Sql {
     private final SimpleDB simpleDB;
     private final StringBuilder queryBuilder;
     private final List<Object> queryParams;
+    private final Connection conn;
 
     public Sql(SimpleDB simpleDB) {
         this.simpleDB = simpleDB;
+        try {
+            this.conn = simpleDB.getConnection();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
         this.queryBuilder = new StringBuilder();
         this.queryParams = new ArrayList<>();
     }
@@ -42,31 +48,23 @@ public class Sql {
     private <T> T executeQuery(Function<ResultSet, T> handler, int... options) {
         String sql = queryBuilder.toString();
         try (
-                Connection conn = simpleDB.getConnection();
                 PreparedStatement stmt = prepareStmt(conn, sql, options);
                 ResultSet rs = stmt.executeQuery()
         ) {
             return handler.apply(rs);
         } catch (SQLException e) {
-            System.out.println("쿼리 실행 오류");
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        return null;
     }
 
     private int executeUpdate(int... options) {
         String sql = queryBuilder.toString();
 
-        try (
-                Connection conn = simpleDB.getConnection();
-                PreparedStatement stmt = prepareStmt(conn, sql, options)
-        ) {
+        try (PreparedStatement stmt = prepareStmt(conn, sql, options)) {
             return stmt.executeUpdate();
         } catch (SQLException e) {
-            System.out.println("업데이트 오류");
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        return 0;
     }
 
     private PreparedStatement prepareStmt(Connection conn, String sql, int... options) throws SQLException {
@@ -84,10 +82,7 @@ public class Sql {
     public long insert() {
         String sql = queryBuilder.toString();
 
-        try (
-                Connection conn = simpleDB.getConnection();
-                PreparedStatement stmt = prepareStmt(conn, sql, Statement.RETURN_GENERATED_KEYS)
-        ) {
+        try (PreparedStatement stmt = prepareStmt(conn, sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.executeUpdate();
 
             try (ResultSet rs = stmt.getGeneratedKeys()) {
@@ -96,8 +91,7 @@ public class Sql {
                 }
             }
         } catch (SQLException e) {
-            System.out.println("insert 오류");
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
         return -1;
     }
@@ -115,7 +109,6 @@ public class Sql {
         List<T> rows = new ArrayList<>();
 
         try (
-                Connection conn = simpleDB.getConnection();
                 PreparedStatement stmt = prepareStmt(conn, sql);
                 ResultSet rs = stmt.executeQuery()
         ) {
@@ -141,12 +134,8 @@ public class Sql {
                     rows.add(obj);
                 }
             }
-        } catch (SQLException e) {
-            System.out.println("selectRows 오류");
-            e.printStackTrace();
         } catch (Exception e) {
-            System.out.println("객체 변환 실패");
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
 
         return rows;
@@ -159,7 +148,7 @@ public class Sql {
 
     public List<Map<String, Object>> selectRows() {
         return selectRows(Map.class).stream()
-                .map(row -> (Map<String, Object>) row) // 명시적 캐스팅
+                .map(row -> (Map<String, Object>) row)
                 .collect(Collectors.toList());
     }
 
@@ -172,8 +161,7 @@ public class Sql {
             try {
                 if (rs.next()) return rs.getObject(1, LocalDateTime.class);
             } catch (SQLException e) {
-                System.out.println("selectDatetime 오류");
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
             return null;
         });
@@ -185,8 +173,7 @@ public class Sql {
             try {
                 while (rs.next()) ids.add(rs.getLong(1));
             } catch (SQLException e) {
-                System.out.println("selectLongs 오류");
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
             return ids;
         });
@@ -197,8 +184,7 @@ public class Sql {
             try {
                 if (rs.next()) return rs.getLong(1);
             } catch (SQLException e) {
-                System.out.println("selectLong 오류");
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
             return null;
         });
@@ -209,8 +195,7 @@ public class Sql {
             try {
                 if (rs.next()) return rs.getString(1);
             } catch (SQLException e) {
-                System.out.println("selectString 오류");
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
             return null;
         });
@@ -221,8 +206,7 @@ public class Sql {
             try {
                 if (rs.next()) return rs.getBoolean(1);
             } catch (SQLException e) {
-                System.out.println("selectBoolean 오류");
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
             return null;
         });
